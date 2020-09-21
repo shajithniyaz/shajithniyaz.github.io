@@ -1412,7 +1412,8 @@ textarea.form-control {
       -moz-box-shadow: 0 0 0 0 rgba($primary, 0);
       box-shadow: 0 0 0 0 rgba($primary, 0);
   }
-}
+
+
 
 .heading-section{
 	.subheading{
@@ -2021,5 +2022,16 @@ textarea.form-control {
   100% {
     stroke-dasharray: 89, 200;
     stroke-dashoffset: -136px;
-  }
+  
+  
+  
+}
+
+
+
+@media (max-width: 991.98px)
+
+.subheading
+{
+color: black;
 }

@@ -6651,7 +6651,9 @@ button.bg-dark:focus {
 
 .mb-5,
 .my-5 {
-  margin-bottom: 3rem !important; }
+  margin-bottom: 3rem !important; 
+  text-align: center;
+  }
 
 .ml-5,
 .mx-5 {
@@ -8548,7 +8550,7 @@ h1, h2, h3, h4, h5,
             color: #b1b493; }
           @media (max-width: 991.98px) {
             .owl-carousel.home-slider .slider-item .slider-text h1 {
-              color: #fff;
+              
               font-size: 50px; } }
           @media (max-width: 767.98px) {
             .owl-carousel.home-slider .slider-item .slider-text h1 {
@@ -9206,15 +9208,15 @@ textarea.form-control {
   margin: 0 10px 0 0;
   display: inline-block; }
   .ftco-footer-social li a {
-    height: 40px;
-    width: 40px;
+    height: 80px;
+    width: 80px;
     display: block;
     background: rgba(255, 255, 255, 0.1);
     border-radius: 50%;
     position: relative; }
     .ftco-footer-social li a span {
       position: absolute;
-      font-size: 20px;
+      font-size: 40px;
       top: 50%;
       left: 50%;
       -webkit-transform: translate(-50%, -50%);
