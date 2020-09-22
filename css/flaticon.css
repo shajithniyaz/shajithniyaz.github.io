@@ -36,12 +36,12 @@
   -moz-osx-font-smoothing: grayscale;
 }
 
-.flaticon-3d-design:before { content: "\f100"; }
-.flaticon-web-programming:before { content: "\f101"; }
+.flaticon-3d-design:before { content: "\f101"; }
+.flaticon-web-programming:before { content: "\f104"; }
 .flaticon-app-development:before { content: "\f102"; }
 .flaticon-advertising:before { content: "\f103"; }
 .flaticon-branding:before { content: "\f104"; }
-.flaticon-vector:before { content: "\f105"; }
+.flaticon-vector:before { content: "\f10e"; }
 .flaticon-computer:before { content: "\f106"; }
 .flaticon-zoom:before { content: "\f107"; }
 .flaticon-suitcase:before { content: "\f108"; }
