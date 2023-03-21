@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Document</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.0.2/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-EVSTQN3/azprG1Anm3QDgpJLIm9Nao0Yz1ztcQTwFspd3yD65VohhpuuCOmLASjC" crossorigin="anonymous">
+</head>
+<style>
+    
+    
+.mainbg {
+    position: relative;
+    background-repeat: no-repeat;
+    background-position: center right;
+    background-size: 75rem;
+    background-image: url("Images/Main_BG.jpg");
+    padding: 10rem 0px;
+
+}
+
+.body{
+    background-color:#f7f7f7;
+    
+
+}
+</style>
+<body>
+    <nav class="navbar navbar-expand-lg navbar-light bg-light">
+        <a class="navbar-brand m-2 pl-4" href="#">Navbar</a>
+        
+        <button class="navbar-toggler" type="button" data-toggle="collapse" data-target="#navbarSupportedContent" aria-controls="navbarSupportedContent" aria-expanded="false" aria-label="Toggle navigation">
+          <span class="navbar-toggler-icon"></span>
+        </button>
+      
+        <div class="collapse navbar-collapse justify-content-center" id="navbarSupportedContent">
+          <ul class="navbar-nav m-2">
+            <li class="nav-item active">
+              <a class="nav-link" href="#">Home</a>
+            </li>
+            <li class="nav-item">
+              <a class="nav-link" href="#">Link</a>
+            </li>
+            <li class="nav-item active">
+                <a class="nav-link" href="#">Home</a>
+              </li>
+              <li class="nav-item">
+                <a class="nav-link" href="#">Link</a>
+              </li>
+          </ul>
+
+          
+          
+        </div>
+      </nav>
+
+      <section class="first-fold mainbg" style="background-color:#f7f7f7;">
+        <div class="container ">
+    
+    
+    
+            <div class="row align-items-center ">
+    
+    
+                <div class="col-sm-5  ">
+
+                    <h1 class="">AaaS</h1>
+                    <h3 class="">Analytics as a Service</h3>
+                   
+                    
+                </div>
+                <div class="col-sm-7  ">
+                </div>
+    
+            </div>
+    
+    
+    
+        </div>
+    </section>
+
+    <section class="second-fold" >
+        <div class="container ">
+    
+    
+    
+            <div class="row align-items-center ">
+                <div class="col-sm-4 ">
+                    <h1 class="">AaaS</h1>
+                    <h3 class="">Analytics as a Service</h3>                   
+                </div>
+                <div class="col-sm-4 ">
+                    <h1 class="">AaaS</h1>
+                    <h3 class="">Analytics as a Service</h3>                                     
+                </div>
+                <div class="col-sm-4 ">
+                    <h1 class="">AaaS</h1>
+                    <h3 class="">Analytics as a Service</h3>                                  
+                </div>
+            </div>
+    
+    
+    
+        </div>
+    </section>
+
+   <!-- <iframe
+        src="https://docs.google.com/forms/d/1RYidybrvy_Rr5dhFX_JicxX-XoXZvXRJUYYjNc-Gw8A/viewform?embedded=true"
+        title="iframe Example 1"
+        width="400"
+        height="1000">
+    </iframe>-->
+    
+
+      
+    
+</body>
+</html>
