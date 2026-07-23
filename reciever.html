@@ -80,6 +80,12 @@
             transition: width 0.2s ease;
         }
 
+        .controls {
+            display: flex;
+            gap: 12px;
+            justify-content: center;
+        }
+
         button {
             background-color: #2979ff;
             color: #fff;
@@ -99,6 +105,14 @@
         button:disabled {
             background-color: #555;
             cursor: not-allowed;
+        }
+
+        .secondary-btn {
+            background-color: #424242;
+        }
+
+        .secondary-btn:hover {
+            background-color: #616161;
         }
 
         .download-btn {
@@ -132,7 +146,11 @@
         </div>
     </div>
 
-    <button id="start-btn" onclick="startScanner()">Start Camera</button>
+    <div class="controls">
+        <button id="start-btn" onclick="startScanner()">Start Camera</button>
+        <button id="flip-btn" class="secondary-btn" onclick="toggleCamera()" disabled>Flip Camera</button>
+    </div>
+
     <div id="download-area"></div>
 </div>
 
@@ -145,30 +163,60 @@
     const frameCounter = document.getElementById('frame-counter');
     const progressBar = document.getElementById('progress-bar');
     const startBtn = document.getElementById('start-btn');
+    const flipBtn = document.getElementById('flip-btn');
     const downloadArea = document.getElementById('download-area');
 
     let isScanning = false;
     let receivedChunks = {};
     let totalFrames = 0;
     let animationFrameId = null;
+    let currentFacingMode = "environment"; // Default to back camera for mobile scanning
 
-    async function startScanner() {
+    async function initCamera() {
+        // Stop any active camera stream tracks first
+        if (video.srcObject) {
+            video.srcObject.getTracks().forEach(track => track.stop());
+        }
+
         try {
             const stream = await navigator.mediaDevices.getUserMedia({ 
-                video: { facingMode: "user" } 
+                video: { 
+                    facingMode: { ideal: currentFacingMode },
+                    width: { ideal: 1280 },
+                    height: { ideal: 720 }
+                } 
             });
+
             video.srcObject = stream;
             video.setAttribute("playsinline", true);
-            video.play();
-            
+            await video.play();
+
+            statusText.innerText = `Scanning on ${currentFacingMode === 'environment' ? 'Rear' : 'Front'} Camera...`;
+            return true;
+        } catch (err) {
+            alert("Camera initialization failed: " + err.message);
+            return false;
+        }
+    }
+
+    async function startScanner() {
+        const success = await initCamera();
+        if (success) {
             isScanning = true;
             startBtn.disabled = true;
-            statusText.innerText = "Scanning for QR stream...";
+            flipBtn.disabled = false;
             
-            requestAnimationFrame(scanFrame);
-        } catch (err) {
-            alert("Camera access failed: " + err.message);
+            if (!animationFrameId) {
+                requestAnimationFrame(scanFrame);
+            }
         }
+    }
+
+    async function toggleCamera() {
+        // Toggle camera direction constraint
+        currentFacingMode = (currentFacingMode === "environment") ? "user" : "environment";
+        statusText.innerText = "Switching camera...";
+        await initCamera();
     }
 
     function scanFrame() {
@@ -230,13 +278,17 @@
 
     function completeTransfer() {
         isScanning = false;
-        cancelAnimationFrame(animationFrameId);
+        if (animationFrameId) {
+            cancelAnimationFrame(animationFrameId);
+            animationFrameId = null;
+        }
 
         // Stop camera stream
         if (video.srcObject) {
             video.srcObject.getTracks().forEach(track => track.stop());
         }
 
+        flipBtn.disabled = true;
         statusText.innerText = "Assembly complete! Reconstructing file...";
         
         // Reassemble payload sequentially from index 0 to totalFrames - 1
