@@ -1,0 +1,419 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Acoustic Data Receiver (Near-Ultrasonic)</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            background-color: #0f172a;
+            color: #f8fafc;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+            margin: 0;
+            padding: 20px;
+            box-sizing: border-box;
+        }
+
+        .card {
+            background-color: #1e293b;
+            padding: 2rem;
+            border-radius: 16px;
+            box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.5);
+            width: 100%;
+            max-width: 520px;
+            text-align: center;
+        }
+
+        h2 { margin-top: 0; color: #38bdf8; font-size: 1.5rem; }
+
+        .control-group {
+            margin: 10px 0;
+            text-align: left;
+        }
+
+        label {
+            display: block;
+            font-size: 0.85rem;
+            color: #94a3b8;
+            margin-bottom: 4px;
+        }
+
+        select {
+            width: 100%;
+            padding: 8px 12px;
+            background: #0f172a;
+            border: 1px solid #334155;
+            color: #fff;
+            border-radius: 6px;
+            box-sizing: border-box;
+            font-size: 0.9rem;
+        }
+
+        /* Signal Telemetry Dashboard */
+        .metrics-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 10px;
+            margin: 15px 0;
+            background: #0f172a;
+            padding: 12px;
+            border-radius: 8px;
+            border: 1px solid #334155;
+        }
+
+        .metric-box h4 {
+            margin: 0;
+            font-size: 0.75rem;
+            color: #94a3b8;
+            text-transform: uppercase;
+        }
+
+        .metric-box p {
+            margin: 4px 0 0 0;
+            font-family: monospace;
+            font-size: 1rem;
+            color: #38bdf8;
+            font-weight: bold;
+        }
+
+        /* Spectrum Visualizer Canvas */
+        canvas {
+            width: 100%;
+            height: 80px;
+            background: #0f172a;
+            border-radius: 6px;
+            border: 1px solid #334155;
+            margin: 10px 0;
+        }
+
+        .status-badge {
+            font-family: monospace;
+            font-size: 1rem;
+            color: #38bdf8;
+            margin: 10px 0;
+            font-weight: bold;
+        }
+
+        .btn {
+            background: #10b981;
+            color: white;
+            border: none;
+            padding: 12px 20px;
+            border-radius: 8px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: background 0.2s;
+            width: 100%;
+            margin-top: 10px;
+        }
+
+        .btn:hover:not(:disabled) { background: #059669; }
+        .btn:disabled { opacity: 0.4; cursor: not-allowed; }
+        .btn.stop { background: #ef4444; }
+        .btn.stop:hover:not(:disabled) { background: #dc2626; }
+
+        /* Output Reconstructed Section */
+        .output-panel {
+            margin-top: 20px;
+            padding-top: 15px;
+            border-top: 1px dashed #334155;
+            text-align: left;
+        }
+
+        textarea {
+            width: 100%;
+            height: 130px;
+            background: #0f172a;
+            color: #a7f3d0;
+            border: 1px solid #334155;
+            border-radius: 6px;
+            padding: 10px;
+            font-family: monospace;
+            font-size: 0.8rem;
+            box-sizing: border-box;
+            resize: vertical;
+            margin-bottom: 10px;
+        }
+    </style>
+</head>
+<body>
+
+<div class="card">
+    <h2>Acoustic Receiver</h2>
+
+    <div class="control-group">
+        <label for="freqMode">Audio Listening Mode:</label>
+        <select id="freqMode" onchange="updateFrequencies()">
+            <option value="ultrasonic">Inaudible (~18.5kHz - 20.5kHz)</option>
+            <option value="audible">Audible Test (~1.7kHz - 2.1kHz)</option>
+        </select>
+    </div>
+
+    <!-- Live Spectrum Visualizer -->
+    <canvas id="visualizer"></canvas>
+
+    <!-- Signal Metrics -->
+    <div class="metrics-grid">
+        <div class="metric-box">
+            <h4>Sync Tone</h4>
+            <p id="mSync">OFF</p>
+        </div>
+        <div class="metric-box">
+            <h4>Bits Captured</h4>
+            <p id="mBits">0</p>
+        </div>
+        <div class="metric-box">
+            <h4>Bytes Reconstructed</h4>
+            <p id="mBytes">0 B</p>
+        </div>
+    </div>
+
+    <div id="statusText" class="status-badge">Status: Microphone Idle</div>
+
+    <button id="btnListen" class="btn" onclick="toggleListening()">🎙 Start Listening</button>
+
+    <!-- Reconstructed Output Panel -->
+    <div class="output-panel">
+        <label>Reconstructed Payload Output:</label>
+        <textarea id="outputText" readonly placeholder="Reconstructed payload JSON will appear here upon completion..."></textarea>
+        <button class="btn" id="btnDownload" onclick="downloadReconstructedPayload()" disabled>⬇ Download Reconstructed Payload (.json)</button>
+    </div>
+</div>
+
+<script>
+    // Detection Carrier Frequencies (Hz)
+    let FREQ_0 = 18500;
+    let FREQ_1 = 19500;
+    let FREQ_SYNC = 20500;
+    const FREQ_TOLERANCE_HZ = 150; // Capture window bandwidth
+
+    let audioCtx = null;
+    let analyser = null;
+    let micStream = null;
+    let isListening = false;
+    let animFrameId = null;
+
+    // Decoder State Machine
+    let state = "IDLE"; // IDLE, SYNCED, CAPTURING
+    let rawBitStream = "";
+    let reconstructedBytes = [];
+    let lastSampleTime = 0;
+    const BIT_INTERVAL_MS = 50; // Matches transmitter sampling rate
+
+    function updateFrequencies() {
+        const mode = document.getElementById('freqMode').value;
+        if (mode === 'ultrasonic') {
+            FREQ_0 = 18500;
+            FREQ_1 = 19500;
+            FREQ_SYNC = 20500;
+        } else {
+            FREQ_0 = 1700;
+            FREQ_1 = 1900;
+            FREQ_SYNC = 2100;
+        }
+    }
+
+    async function toggleListening() {
+        const btn = document.getElementById('btnListen');
+
+        if (!isListening) {
+            try {
+                updateFrequencies();
+                micStream = await navigator.mediaDevices.getUserMedia({ audio: true, video: false });
+                
+                audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+                const source = audioCtx.createMediaStreamSource(micStream);
+                
+                analyser = audioCtx.createAnalyser();
+                analyser.fftSize = 2048; // Provides ~21.5 Hz bin resolution at 44.1kHz sampling rate
+                analyser.smoothingTimeConstant = 0.2;
+                source.connect(analyser);
+
+                isListening = true;
+                btn.innerText = "⏹ Stop Receiver";
+                btn.classList.add("stop");
+                document.getElementById('statusText').innerText = "Listening for Sync Preamble...";
+                
+                // Reset State
+                state = "IDLE";
+                rawBitStream = "";
+                reconstructedBytes = [];
+                document.getElementById('outputText').value = "";
+                document.getElementById('btnDownload').disabled = true;
+
+                processAudioSpectrum();
+            } catch (err) {
+                console.error("Microphone Access Error:", err);
+                document.getElementById('statusText').innerText = "Mic Permission Denied / Error";
+            }
+        } else {
+            stopListening();
+        }
+    }
+
+    function stopListening() {
+        isListening = false;
+        if (animFrameId) cancelAnimationFrame(animFrameId);
+        if (micStream) micStream.getTracks().forEach(track => track.stop());
+        if (audioCtx) audioCtx.close();
+
+        const btn = document.getElementById('btnListen');
+        btn.innerText = "🎙 Start Listening";
+        btn.classList.remove("stop");
+        document.getElementById('mSync').innerText = "OFF";
+        document.getElementById('mSync').style.color = "#38bdf8";
+        document.getElementById('statusText').innerText = "Status: Receiver Stopped";
+    }
+
+    function processAudioSpectrum() {
+        if (!isListening) return;
+
+        const bufferLength = analyser.frequencyBinCount;
+        const frequencyData = new Uint8Array(bufferLength);
+        analyser.getByteFrequencyData(frequencyData);
+
+        // Render Canvas Visualizer
+        drawSpectrum(frequencyData, bufferLength);
+
+        // Calculate Energy Amplification at Target Frequency Bins
+        const syncEnergy = getFrequencyRangeEnergy(FREQ_SYNC, frequencyData);
+        const zeroEnergy = getFrequencyRangeEnergy(FREQ_0, frequencyData);
+        const oneEnergy = getFrequencyRangeEnergy(FREQ_1, frequencyData);
+
+        const now = performance.now();
+        const NOISE_FLOOR = 60; // Minimum amplitude threshold
+
+        // --- Receiver State Machine Logic ---
+        if (state === "IDLE") {
+            if (syncEnergy > NOISE_FLOOR && syncEnergy > zeroEnergy && syncEnergy > oneEnergy) {
+                state = "SYNCED";
+                lastSampleTime = now + 50; // Align sample window past preamble
+                document.getElementById('mSync').innerText = "DETECTED";
+                document.getElementById('mSync').style.color = "#10b981";
+                document.getElementById('statusText').innerText = "Preamble Sync Locked! Reading bits...";
+            }
+        } else if (state === "SYNCED" || state === "CAPTURING") {
+            document.getElementById('mSync').innerText = "CAPTURING";
+
+            // Sample audio stream at periodic bit intervals
+            if (now - lastSampleTime >= BIT_INTERVAL_MS) {
+                lastSampleTime = now;
+
+                if (oneEnergy > NOISE_FLOOR || zeroEnergy > NOISE_FLOOR) {
+                    state = "CAPTURING";
+                    const detectedBit = (oneEnergy > zeroEnergy) ? "1" : "0";
+                    rawBitStream += detectedBit;
+
+                    // Update Metrics Dashboard
+                    document.getElementById('mBits').innerText = rawBitStream.length;
+
+                    // Reconstruct bytes every 8 bits
+                    if (rawBitStream.length % 8 === 0) {
+                        const byteIndex = (rawBitStream.length / 8) - 1;
+                        const lastByteBitStr = rawBitStream.substring(byteIndex * 8, (byteIndex + 1) * 8);
+                        const byteVal = parseInt(lastByteBitStr, 2);
+                        reconstructedBytes.push(byteVal);
+
+                        document.getElementById('mBytes').innerText = `${reconstructedBytes.length} B`;
+                        
+                        // Live stream preview in textarea
+                        attemptPartialReconstruction();
+                    }
+                } else if (state === "CAPTURING" && (now - lastSampleTime > 1000)) {
+                    // Timeout condition (no carrier signal for over 1s)
+                    finalizeReconstruction();
+                }
+            }
+        }
+
+        animFrameId = requestAnimationFrame(processAudioSpectrum);
+    }
+
+    function getFrequencyRangeEnergy(targetFreq, frequencyData) {
+        const nyquist = audioCtx.sampleRate / 2;
+        const binIndex = Math.round((targetFreq / nyquist) * frequencyData.length);
+        const toleranceBins = Math.ceil((FREQ_TOLERANCE_HZ / nyquist) * frequencyData.length);
+
+        let maxEnergy = 0;
+        for (let i = binIndex - toleranceBins; i <= binIndex + toleranceBins; i++) {
+            if (i >= 0 && i < frequencyData.length) {
+                if (frequencyData[i] > maxEnergy) {
+                    maxEnergy = frequencyData[i];
+                }
+            }
+        }
+        return maxEnergy;
+    }
+
+    function attemptPartialReconstruction() {
+        try {
+            const uintArray = new Uint8Array(reconstructedBytes);
+            const decoder = new TextDecoder('utf-8', { fatal: false });
+            const partialText = decoder.decode(uintArray);
+            
+            // Try formatting if it forms a complete JSON structure
+            try {
+                const parsed = JSON.parse(partialText);
+                document.getElementById('outputText').value = JSON.stringify(parsed, null, 2);
+                document.getElementById('btnDownload').disabled = false;
+                document.getElementById('statusText').innerText = "Valid JSON Stream Reconstructed!";
+            } catch (e) {
+                // Display raw text stream until JSON completes
+                document.getElementById('outputText').value = partialText;
+            }
+        } catch (err) {
+            console.error("Decoding glitch:", err);
+        }
+    }
+
+    function finalizeReconstruction() {
+        state = "IDLE";
+        document.getElementById('mSync').innerText = "DONE";
+        document.getElementById('mSync').style.color = "#38bdf8";
+        document.getElementById('statusText').innerText = "Stream Ended. Payload Reconstructed!";
+        attemptPartialReconstruction();
+    }
+
+    function drawSpectrum(frequencyData, bufferLength) {
+        const canvas = document.getElementById('visualizer');
+        const ctx = canvas.getContext('2d');
+        canvas.width = canvas.clientWidth;
+        canvas.height = canvas.clientHeight;
+
+        ctx.fillStyle = '#0f172a';
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+        const barWidth = (canvas.width / bufferLength) * 2.5;
+        let x = 0;
+
+        for (let i = 0; i < bufferLength; i++) {
+            const barHeight = (frequencyData[i] / 255) * canvas.height;
+            ctx.fillStyle = `rgb(56, 189, 248)`;
+            ctx.fillRect(x, canvas.height - barHeight, barWidth, barHeight);
+            x += barWidth + 1;
+        }
+    }
+
+    function downloadReconstructedPayload() {
+        const payloadText = document.getElementById('outputText').value;
+        if (!payloadText) return;
+
+        const blob = new Blob([payloadText], { type: "application/json" });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = "reconstructed_acoustic_payload.json";
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+    }
+</script>
+
+</body>
+</html>
